@@ -11,9 +11,11 @@
   --cream: #f6f1e7;
   --mist: #d5dbe4;
   --mist-2: #b9c2d0;
-  --accent: #403878;
-  --accent-on-dark: #d4c6ff;
-  --accent-ink: #ffffff;
+  --accent: #e0a33a;
+  --accent-on-dark: #e0a33a;
+  --accent-ink: #0f1b2d;
+  --label: #8a5a12;
+  --kicker: #453e7a;
   --green: #2f6b3a;
   --green-bg: #eaf1ea;
   --green-line: #c5d8c7;
@@ -84,7 +86,7 @@ button { cursor: pointer; }
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--kicker);
 }
 
 .hero {
@@ -104,7 +106,7 @@ button { cursor: pointer; }
   font-weight: 700;
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--label);
 }
 .eyebrow-soft {
   font-size: 13px;
@@ -183,7 +185,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
   height: 88px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,7 +217,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
 }
 .speed.on {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 
@@ -233,8 +235,8 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
   border: none;
 }
 .btn:hover { filter: brightness(1.08); }
-.btn-accent { background: var(--accent); color: #fff; }
-.btn-accent:hover { color: #fff; }
+.btn-accent { background: var(--accent); color: var(--accent-ink); }
+.btn-accent:hover { color: var(--accent-ink); }
 .btn-navy { background: var(--navy); color: var(--cream); }
 .btn-navy:hover { color: var(--cream); }
 .btn-lg { min-height: 60px; padding: 0 38px; font-size: 19px; }
@@ -260,7 +262,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
 }
 .cover-head { gap: 14px; }
 .cover-head h2 { max-width: 860px; }
-.cover-head h2 .hl { color: var(--accent); }
+.cover-head h2 .hl { color: var(--label); }
 .sub {
   margin: 0;
   max-width: 680px;
@@ -439,7 +441,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
   font-family: var(--serif);
   font-size: 40px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--label);
   line-height: 1;
 }
 .step-card h3 { margin: 0; font-size: 19px; font-weight: 700; }
@@ -468,7 +470,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
 }
 .include h3 { margin: 0; font-weight: 700; font-size: 18px; }
 .include p { margin: 0; font-size: 15px; color: var(--muted); }
-.tier { font-size: 13px; font-weight: 600; color: var(--accent); }
+.tier { font-size: 13px; font-weight: 600; color: var(--label); }
 .bonus {
   display: flex;
   flex-direction: column;
@@ -568,7 +570,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
 }
 .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
 .founder-copy { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
-.role { font-size: 16px; font-weight: 600; color: var(--accent); margin-top: -8px; }
+.role { font-size: 16px; font-weight: 600; color: var(--label); margin-top: -8px; }
 .founder-copy p { margin: 0; color: var(--body); font-size: 18px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
 .stat {
@@ -650,7 +652,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 .pkg h3 { margin: 0; font-family: var(--serif); font-size: 26px; font-weight: 700; }
 .pkg .tag { font-size: 15px; color: var(--muted); }
@@ -763,7 +765,7 @@ h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.15; }
   text-align: left;
   color: var(--ink);
 }
-.faq .icon { flex: none; font-size: 26px; font-weight: 400; color: var(--accent); line-height: 1; }
+.faq .icon { flex: none; font-size: 26px; font-weight: 400; color: var(--label); line-height: 1; }
 .faq p { margin: 0; padding: 0 4px 22px; color: var(--muted); }
 
 .final {

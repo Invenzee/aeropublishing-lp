@@ -529,14 +529,14 @@ export function Landing() {
       <div className="guarantee-wrap">
         <div className="guarantee">
           <svg width="170" height="170" viewBox="0 0 200 200" role="img" aria-label="100% money-back guarantee seal" style={{ flex: "none" }}>
-            <polygon points="198.0,100.0 187.2,111.5 194.7,125.4 181.3,133.7 184.9,149.0 169.8,153.6 169.3,169.3 153.6,169.8 149.0,184.9 133.7,181.3 125.4,194.7 111.5,187.2 100.0,198.0 88.5,187.2 74.6,194.7 66.3,181.3 51.0,184.9 46.4,169.8 30.7,169.3 30.2,153.6 15.1,149.0 18.7,133.7 5.3,125.4 12.8,111.5 2.0,100.0 12.8,88.5 5.3,74.6 18.7,66.3 15.1,51.0 30.2,46.4 30.7,30.7 46.4,30.2 51.0,15.1 66.3,18.7 74.6,5.3 88.5,12.8 100.0,2.0 111.5,12.8 125.4,5.3 133.7,18.7 149.0,15.1 153.6,30.2 169.3,30.7 169.8,46.4 184.9,51.0 181.3,66.3 194.7,74.6 187.2,88.5" fill="#403878" />
+            <polygon points="198.0,100.0 187.2,111.5 194.7,125.4 181.3,133.7 184.9,149.0 169.8,153.6 169.3,169.3 153.6,169.8 149.0,184.9 133.7,181.3 125.4,194.7 111.5,187.2 100.0,198.0 88.5,187.2 74.6,194.7 66.3,181.3 51.0,184.9 46.4,169.8 30.7,169.3 30.2,153.6 15.1,149.0 18.7,133.7 5.3,125.4 12.8,111.5 2.0,100.0 12.8,88.5 5.3,74.6 18.7,66.3 15.1,51.0 30.2,46.4 30.7,30.7 46.4,30.2 51.0,15.1 66.3,18.7 74.6,5.3 88.5,12.8 100.0,2.0 111.5,12.8 125.4,5.3 133.7,18.7 149.0,15.1 153.6,30.2 169.3,30.7 169.8,46.4 184.9,51.0 181.3,66.3 194.7,74.6 187.2,88.5" fill="#E0A33A" />
             <circle cx="100" cy="100" r="80" fill="#0F1B2D" />
-            <circle cx="100" cy="100" r="71" fill="none" stroke="#403878" strokeWidth="2" strokeDasharray="3 4" />
-            <text x="100" y="68" textAnchor="middle" fill="#D4C6FF" fontFamily="Inter, sans-serif" fontSize="13" fontWeight="700" letterSpacing="2">MONEY-BACK</text>
+            <circle cx="100" cy="100" r="71" fill="none" stroke="#E0A33A" strokeWidth="2" strokeDasharray="3 4" />
+            <text x="100" y="68" textAnchor="middle" fill="#E0A33A" fontFamily="Inter, sans-serif" fontSize="13" fontWeight="700" letterSpacing="2">MONEY-BACK</text>
             <text x="100" y="114" textAnchor="middle" fill="#F6F1E7" fontFamily="Fraunces, Georgia, serif" fontSize="44" fontWeight="700">100%</text>
-            <rect x="34" y="124" width="132" height="26" rx="3" fill="#403878" />
-            <text x="100" y="142" textAnchor="middle" fill="#FFFFFF" fontFamily="Inter, sans-serif" fontSize="13" fontWeight="800" letterSpacing="2.5">GUARANTEE</text>
-            <text x="100" y="168" textAnchor="middle" fill="#D4C6FF" fontSize="12" letterSpacing="4">★★★</text>
+            <rect x="34" y="124" width="132" height="26" rx="3" fill="#E0A33A" />
+            <text x="100" y="142" textAnchor="middle" fill="#0F1B2D" fontFamily="Inter, sans-serif" fontSize="13" fontWeight="800" letterSpacing="2.5">GUARANTEE</text>
+            <text x="100" y="168" textAnchor="middle" fill="#E0A33A" fontSize="12" letterSpacing="4">★★★</text>
           </svg>
           <div className="guarantee-copy">
             <div className="eyebrow">Zero risk to you</div>
