@@ -158,15 +158,20 @@ export function Landing() {
     setStep(target);
   }
 
-  function pngFile(dataUrl: string, name: string) {
-    const bytes = Uint8Array.from(atob(dataUrl.split(",")[1] || ""), (char) => char.charCodeAt(0));
-    return new File([bytes], name, { type: "image/png" });
+  async function imageFile(src: string, name: string) {
+    if (src.startsWith("blob:")) {
+      const blob = await fetch(src).then((item) => item.blob());
+      return new File([blob], name, { type: blob.type || "image/jpeg" });
+    }
+    const mime = src.startsWith("data:image/png") ? "image/png" : "image/jpeg";
+    const bytes = Uint8Array.from(atob(src.split(",")[1] || ""), (char) => char.charCodeAt(0));
+    return new File([bytes], name, { type: mime });
   }
 
-  function saveCover(dataUrl: string | null) {
-    if (!dataUrl) return;
+  async function saveCover(src: string | null) {
+    if (!src) return;
     const name = coverFileName(title);
-    const url = URL.createObjectURL(pngFile(dataUrl, name));
+    const url = URL.createObjectURL(await imageFile(src, name));
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
@@ -176,10 +181,10 @@ export function Landing() {
     URL.revokeObjectURL(url);
   }
 
-  async function shareCover(dataUrl: string | null) {
-    if (!dataUrl) return;
+  async function shareCover(src: string | null) {
+    if (!src) return;
     const name = coverFileName(title);
-    const file = pngFile(dataUrl, name);
+    const file = await imageFile(src, name);
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: displayTitle });
@@ -188,7 +193,7 @@ export function Landing() {
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
-    saveCover(dataUrl);
+    await saveCover(src);
   }
 
   function goNext() {
@@ -242,15 +247,23 @@ export function Landing() {
           idea: idea.trim(),
         }),
       });
+      const type = response.headers.get("content-type") || "";
+      if (controller.signal.aborted) return;
+      if (response.ok && type.startsWith("image/")) {
+        const blob = await response.blob();
+        if (controller.signal.aborted) return;
+        setUsed(true);
+        setImage((current) => {
+          if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+          return URL.createObjectURL(blob);
+        });
+        return;
+      }
       const data = (await response.json().catch(() => null)) as CoverResponse | null;
       if (controller.signal.aborted) return;
       if (data?.used === true) setUsed(true);
-      if (!response.ok || !data || typeof data.image !== "string" || !data.image) {
-        const message = data && typeof data.error === "string" ? data.error : "The cover could not be created. Try again.";
-        throw new Error(message);
-      }
-      setUsed(true);
-      setImage(`data:image/png;base64,${data.image}`);
+      const message = data && typeof data.error === "string" ? data.error : "The cover could not be created. Try again.";
+      throw new Error(message);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (controller.signal.aborted) return;

@@ -49,7 +49,7 @@ export function coverFileName(title: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  return `${slug || "book"}-cover.png`;
+  return `${slug || "book"}-cover.jpg`;
 }
 
 function quoted(value: string) {

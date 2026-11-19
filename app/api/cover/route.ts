@@ -6,6 +6,22 @@ export const maxDuration = 180;
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/images";
 
+function usedCookie() {
+  const secure = process.env.VERCEL ? "; Secure" : "";
+  return `cover_used=1; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secure}`;
+}
+
+function hasUsedCookie(request: Request) {
+  return (request.headers.get("cookie") || "")
+    .split(";")
+    .some((part) => part.trim() === "cover_used=1");
+}
+
+async function alreadyUsed(request: Request) {
+  if (hasUsedCookie(request)) return true;
+  return coverAlreadyUsed(request);
+}
+
 class CoverError extends Error {
   status: number;
   constructor(message: string, status = 502) {
@@ -35,7 +51,7 @@ function providerMessage(body: string, fallback: string) {
 }
 
 export async function GET(request: Request) {
-  const used = await coverAlreadyUsed(request);
+  const used = await alreadyUsed(request);
   return Response.json({ used });
 }
 
@@ -84,7 +100,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (await coverAlreadyUsed(request)) {
+  if (await alreadyUsed(request)) {
     return Response.json(
       { error: "A cover was already created from this connection.", used: true },
       { status: 429 },
@@ -105,14 +121,14 @@ export async function POST(request: Request) {
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
+        "HTTP-Referer": request.headers.get("origin") || "https://aeropublishing-lp.vercel.app",
         "X-Title": "Aero Publishing Cover Studio",
       },
       body: JSON.stringify({
         model: coverModel.openrouter,
         prompt: buildCoverPrompt({ title, author, theme, idea, genre }),
         aspect_ratio: "2:3",
-        output_format: "png",
+        output_format: "jpeg",
         quality: coverModel.quality,
         n: 1,
         provider: { options: { openai: { complexity: "high" } } },
@@ -135,8 +151,19 @@ export async function POST(request: Request) {
     if (!image) {
       throw new CoverError("The model did not return a cover.");
     }
-    await markCoverUsed(request);
-    return Response.json({ image });
+    try {
+      await markCoverUsed(request);
+    } catch {
+      /* Remembering the IP must not hide a cover that was already created. */
+    }
+    const bytes = Buffer.from(image, "base64");
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "no-store",
+        "Set-Cookie": usedCookie(),
+      },
+    });
   } catch (err) {
     if (err instanceof CoverError) {
       return Response.json({ error: err.message }, { status: err.status });
