@@ -1,6 +1,8 @@
 node_modules
 .next
 data
+.env
+*.tsbuildinfo
 out
 .DS_Store
 *.log

@@ -13,7 +13,7 @@ export function Footer() {
           </span>
         </div>
         <p>
-          This site is not part of, or endorsed by, Amazon, Meta or any platform referenced. Results described by authors are not typical and depend on each author&apos;s effort, market and book. [Add your own disclaimer here.]
+          This site is not part of, or endorsed by, Amazon, Meta or any platform referenced. Results described by authors are not typical and depend on each author&apos;s effort, market and book.
         </p>
       </div>
     </footer>
