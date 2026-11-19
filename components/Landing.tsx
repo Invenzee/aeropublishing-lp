@@ -34,7 +34,11 @@ type CoverResponse = {
 
 const COVER_PHASES = [
   "Checking your details",
+  "Reading the genre",
+  "Setting the palette",
   "Thinking through the cover",
+  "Composing the layout",
+  "Setting the title",
   "Generating the image",
   "Hold on — almost ready",
 ];
@@ -88,8 +92,8 @@ export function Landing() {
       return;
     }
     const timer = window.setInterval(() => {
-      setPhase((current) => Math.min(current + 1, COVER_PHASES.length - 1));
-    }, 2800);
+      setPhase((current) => (current + 1) % COVER_PHASES.length);
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [loading]);
 
@@ -532,7 +536,10 @@ export function Landing() {
             <div className="studio">
               <div className="preview">
                 <div className="preview-label">{image ? "Your cover" : "Live preview"}</div>
-                <div className="book" style={{ background: cur.bg, color: cur.fg }}>
+                <div
+                  className={loading ? "book is-loading" : "book"}
+                  style={loading ? undefined : { background: cur.bg, color: cur.fg }}
+                >
                   {image && <img className="book-art" src={image} alt={`Cover for ${displayTitle}`} />}
                   {!image && (
                     <>
@@ -552,14 +559,8 @@ export function Landing() {
                   )}
                   {loading && (
                     <div className="book-loading" role="status" aria-live="polite">
-                      <span className="book-spinner" aria-hidden="true" />
-                      <ol className="cover-phases">
-                        {COVER_PHASES.map((label, index) => (
-                          <li key={label} className={index === phase ? "on" : index < phase ? "done" : ""}>
-                            {label}
-                          </li>
-                        ))}
-                      </ol>
+                      <span className="cover-orbit" aria-hidden="true" />
+                      <p key={phase} className="cover-phase">{COVER_PHASES[phase]}</p>
                     </div>
                   )}
                 </div>
