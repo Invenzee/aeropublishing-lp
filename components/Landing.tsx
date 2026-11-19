@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { coverFileName, coverGenres } from "@/lib/cover-prompt";
 import {
   books,
   coverThemes,
@@ -25,6 +26,21 @@ function Check() {
   );
 }
 
+type CoverResponse = {
+  image?: unknown;
+  error?: unknown;
+  used?: unknown;
+};
+
+const COVER_PHASES = [
+  "Checking your details",
+  "Thinking through the cover",
+  "Generating the image",
+  "Hold on — almost ready",
+];
+
+const IDEA_MIN = 200;
+
 export function Landing() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [soundOn, setSoundOn] = useState(false);
@@ -32,9 +48,18 @@ export function Landing() {
   const [billing, setBilling] = useState<"full" | "monthly">("full");
   const [open, setOpen] = useState(0);
   const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
   const [idea, setIdea] = useState("");
-  const [theme, setTheme] = useState(0);
-  const [generated, setGenerated] = useState(false);
+  const [theme, setTheme] = useState<number | null>(null);
+  const [genre, setGenre] = useState("");
+  const [image, setImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState(0);
+  const [used, setUsed] = useState(false);
+  const [error, setError] = useState("");
+  const [step, setStep] = useState(0);
+  const [reached, setReached] = useState(0);
+  const coverRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -43,6 +68,30 @@ export function Landing() {
     const play = video.play();
     if (play) play.catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/cover")
+      .then((response) => response.json())
+      .then((data: CoverResponse) => {
+        if (!cancelled && data?.used === true) setUsed(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setPhase(0);
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setPhase((current) => Math.min(current + 1, COVER_PHASES.length - 1));
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, [loading]);
 
   function setRate(rate: number) {
     setSpeed(rate);
@@ -62,15 +111,154 @@ export function Landing() {
     setSoundOn(true);
   }
 
-  const cur = coverThemes[theme];
+  const picked = theme === null ? undefined : coverThemes[theme];
+  const cur = picked ?? { name: "", bg: "#1c2430", fg: "#f6f1e7", mo: "#c4b8a5" };
   const ideaText = idea.trim();
   const displayTitle = title.trim() || "Your Book Title";
+  const displayAuthor = author.trim() || "Your Name";
   const coverTag = ideaText
     ? ideaText.length > 34
       ? ideaText.slice(0, 34) + "…"
       : ideaText
-    : "A " + cur.name + " cover";
+    : picked
+      ? "A " + picked.name + " cover"
+      : "Your cover";
   const full = billing === "full";
+
+  function clearArt() {
+    if (used || image) return;
+    coverRequest.current?.abort();
+    setLoading(false);
+    setError("");
+  }
+
+  function stepError(index: number) {
+    if (index === 0) {
+      if (!title.trim()) return "Add the book title to continue.";
+      if (!author.trim()) return "Add the author name to continue.";
+    }
+    if (index === 1 && !genre) return "Choose a genre to continue.";
+    if (index === 2 && theme === null) return "Choose a colour theme to continue.";
+    if (index === 3 && idea.trim().length < IDEA_MIN) {
+      return `Describe the cover in at least ${IDEA_MIN} characters. ${idea.trim().length} so far.`;
+    }
+    return "";
+  }
+
+  function openStep(target: number) {
+    for (let index = 0; index < target; index += 1) {
+      const message = stepError(index);
+      if (message) {
+        setStep(index);
+        setError(message);
+        return;
+      }
+    }
+    setError("");
+    setStep(target);
+  }
+
+  function pngFile(dataUrl: string, name: string) {
+    const bytes = Uint8Array.from(atob(dataUrl.split(",")[1] || ""), (char) => char.charCodeAt(0));
+    return new File([bytes], name, { type: "image/png" });
+  }
+
+  function saveCover(dataUrl: string | null) {
+    if (!dataUrl) return;
+    const name = coverFileName(title);
+    const url = URL.createObjectURL(pngFile(dataUrl, name));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function shareCover(dataUrl: string | null) {
+    if (!dataUrl) return;
+    const name = coverFileName(title);
+    const file = pngFile(dataUrl, name);
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: displayTitle });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    }
+    saveCover(dataUrl);
+  }
+
+  function goNext() {
+    const message = stepError(step);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setError("");
+    const next = Math.min(3, step + 1);
+    setReached((max) => Math.max(max, next));
+    setStep(next);
+  }
+
+  function goBack() {
+    setError("");
+    setStep((current) => Math.max(0, current - 1));
+  }
+
+  async function generateCover() {
+    if (used) {
+      setError("A cover was already created from this connection.");
+      return;
+    }
+    for (let index = 0; index < 4; index += 1) {
+      const message = stepError(index);
+      if (message) {
+        setStep(index);
+        setError(message);
+        return;
+      }
+    }
+    if (!picked) return;
+
+    coverRequest.current?.abort();
+    const controller = new AbortController();
+    coverRequest.current = controller;
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/cover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          title: title.trim(),
+          author: author.trim(),
+          theme: picked.name,
+          genre,
+          idea: idea.trim(),
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as CoverResponse | null;
+      if (controller.signal.aborted) return;
+      if (data?.used === true) setUsed(true);
+      if (!response.ok || !data || typeof data.image !== "string" || !data.image) {
+        const message = data && typeof data.error === "string" ? data.error : "The cover could not be created. Try again.";
+        throw new Error(message);
+      }
+      setUsed(true);
+      setImage(`data:image/png;base64,${data.image}`);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (controller.signal.aborted) return;
+      setError(err instanceof Error ? err.message : "The cover could not be created. Try again.");
+    } finally {
+      if (coverRequest.current === controller) setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -162,110 +350,225 @@ export function Landing() {
               Get your book cover designed <span className="hl">free</span>, in minutes.
             </h2>
             <p className="sub">
-              Tell our AI your title, pick a colour theme and describe your idea. You&apos;ll get cover concepts you can actually see, and then our designers polish your favourite for print.
+              Move through the steps with Next. At the end, one cover is designed from your title, genre, colours and idea.
             </p>
           </div>
 
-          <div className="cover-row">
-            <form className="cover-form" onSubmit={(e) => e.preventDefault()}>
-              <div className="step-label">
-                <div className="num">1</div>
-                <label htmlFor="c-title">Your book title</label>
-              </div>
-              <input
-                id="c-title"
-                type="text"
-                placeholder="e.g. The Quiet Founder"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setGenerated(false);
-                }}
-              />
-
-              <div className="step-label">
-                <div className="num">2</div>
-                <div id="c-theme-label">Pick a colour theme</div>
-              </div>
-              <div className="theme-grid" role="group" aria-labelledby="c-theme-label">
-                {coverThemes.map((item, i) => (
+          <div className="cover-studio">
+            <form className="cover-wizard" onSubmit={(e) => e.preventDefault()}>
+              <div className="wizard-progress" aria-label="Cover steps">
+                {["Book", "Genre", "Colours", "Idea"].map((label, i) => (
                   <button
-                    key={item.name}
+                    key={label}
                     type="button"
-                    className={i === theme ? "theme-btn on" : "theme-btn"}
-                    aria-pressed={i === theme}
-                    onClick={() => {
-                      setTheme(i);
-                      setGenerated(false);
-                    }}
+                    className={i === step ? "on" : i < reached ? "done" : ""}
+                    aria-current={i === step ? "step" : undefined}
+                    disabled={i > reached}
+                    onClick={() => openStep(i)}
                   >
-                    <span
-                      className="swatch"
-                      aria-hidden="true"
-                      style={{
-                        background: item.bg,
-                        boxShadow: `inset 0 0 0 5px ${item.bg}, inset 0 0 0 11px ${item.mo}`,
-                      }}
-                    />
-                    <span>{item.name}</span>
+                    <span>{i + 1}</span>
+                    {label}
                   </button>
                 ))}
               </div>
 
-              <div className="step-label">
-                <div className="num">3</div>
-                <label htmlFor="c-idea">Describe your cover idea</label>
-              </div>
-              <textarea
-                id="c-idea"
-                rows={4}
-                placeholder="e.g. A minimal cover with a single lighthouse at dusk, calm and confident, for a leadership book."
-                value={idea}
-                onChange={(e) => {
-                  setIdea(e.target.value);
-                  setGenerated(false);
-                }}
-              />
+              <section className="cover-step">
+                {step === 0 && (
+                  <>
+                    <div className="step-label">
+                      <div className="num">1</div>
+                      <div className="step-copy">
+                        <label htmlFor="c-title">The book</label>
+                        <span>Title and author, exactly as they should be printed.</span>
+                      </div>
+                    </div>
+                    <input
+                      id="c-title"
+                      type="text"
+                      maxLength={120}
+                      placeholder="e.g. The Quiet Founder"
+                      value={title}
+                      onChange={(e) => {
+                        setTitle(e.target.value);
+                        clearArt();
+                      }}
+                    />
+                    <label className="sub-label" htmlFor="c-author">Author name</label>
+                    <input
+                      id="c-author"
+                      type="text"
+                      maxLength={80}
+                      placeholder="e.g. Jane Smith"
+                      value={author}
+                      onChange={(e) => {
+                        setAuthor(e.target.value);
+                        clearArt();
+                      }}
+                    />
+                  </>
+                )}
 
-              <button type="button" className="btn btn-navy" onClick={() => setGenerated(true)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
-                </svg>
-                Generate My Free Cover
-              </button>
-              <div className="hint">No card needed · Included free with every package</div>
+                {step === 1 && (
+                  <>
+                    <div className="step-label">
+                      <div className="num">2</div>
+                      <div className="step-copy">
+                        <label htmlFor="c-genre">The genre</label>
+                        <span>So the type and mood match the shelf it belongs on.</span>
+                      </div>
+                    </div>
+                    <select
+                      id="c-genre"
+                      value={genre}
+                      onChange={(e) => {
+                        setGenre(e.target.value);
+                        clearArt();
+                      }}
+                    >
+                      <option value="">Choose a genre</option>
+                      {coverGenres.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {step === 2 && (
+                  <>
+                    <div className="step-label">
+                      <div className="num">3</div>
+                      <div className="step-copy">
+                        <div id="c-theme-label">The colours</div>
+                        <span>The palette the cover stays inside.</span>
+                      </div>
+                    </div>
+                    <div className="theme-grid" role="group" aria-labelledby="c-theme-label">
+                      {coverThemes.map((item, i) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className={i === theme ? "theme-btn on" : "theme-btn"}
+                          aria-pressed={i === theme}
+                          onClick={() => {
+                            setTheme(i);
+                            clearArt();
+                          }}
+                        >
+                          <span
+                            className="swatch"
+                            aria-hidden="true"
+                            style={{
+                              background: item.bg,
+                              boxShadow: `inset 0 0 0 5px ${item.bg}, inset 0 0 0 11px ${item.mo}`,
+                            }}
+                          />
+                          <span>{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {step === 3 && (
+                  <>
+                    <div className="step-label">
+                      <div className="num">4</div>
+                      <div className="step-copy">
+                        <label htmlFor="c-idea">The idea</label>
+                        <span>At least 200 characters, so the cover is specific to this book.</span>
+                      </div>
+                    </div>
+                    <textarea
+                      id="c-idea"
+                      rows={5}
+                      maxLength={800}
+                      required
+                      placeholder="Describe the scene, mood, and what the title should feel like. Be specific — this needs at least 200 characters."
+                      value={idea}
+                      onChange={(e) => {
+                        setIdea(e.target.value);
+                        clearArt();
+                      }}
+                    />
+                    <p className={idea.trim().length >= IDEA_MIN ? "idea-count ok" : "idea-count"}>
+                      {idea.trim().length} / {IDEA_MIN} characters minimum
+                    </p>
+                  </>
+                )}
+
+                {error && <div className="cover-error" role="alert">{error}</div>}
+                <div className="wizard-nav">
+                  {step > 0 && (
+                    <button type="button" className="btn btn-ghost" onClick={goBack}>Back</button>
+                  )}
+                  {step < 3 ? (
+                    <button type="button" className="btn btn-navy" onClick={goNext}>Next</button>
+                  ) : (
+                    <button type="button" className="btn btn-navy" onClick={generateCover} disabled={loading || used}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+                      </svg>
+                      {used ? "Cover already created" : loading ? "Designing your cover…" : "Design my cover"}
+                    </button>
+                  )}
+                </div>
+                <div className="hint">One cover · No card needed · Included free with every package</div>
+              </section>
             </form>
 
-            <div className="preview">
-              <div className="preview-label">Live preview</div>
-              <div className="book" style={{ background: cur.bg, color: cur.fg }}>
-                <div className="book-tag">{coverTag}</div>
-                <div className="book-mid">
-                  <div
-                    className="motif"
-                    style={{
-                      border: `2px solid ${cur.mo}`,
-                      boxShadow: `inset 0 0 0 14px ${cur.bg}, inset 0 0 0 44px ${cur.mo}`,
-                    }}
-                  />
-                  <div className="book-title">{displayTitle}</div>
+            <div className="studio">
+              <div className="preview">
+                <div className="preview-label">{image ? "Your cover" : "Live preview"}</div>
+                <div className="book" style={{ background: cur.bg, color: cur.fg }}>
+                  {image && <img className="book-art" src={image} alt={`Cover for ${displayTitle}`} />}
+                  {!image && (
+                    <>
+                      <div className="book-tag">{coverTag}</div>
+                      <div className="book-mid">
+                        <div
+                          className="motif"
+                          style={{
+                            border: `2px solid ${cur.mo}`,
+                            boxShadow: `inset 0 0 0 14px ${cur.bg}, inset 0 0 0 44px ${cur.mo}`,
+                          }}
+                        />
+                        <div className="book-title">{displayTitle}</div>
+                      </div>
+                      <div className="book-by">{displayAuthor}</div>
+                    </>
+                  )}
+                  {loading && (
+                    <div className="book-loading" role="status" aria-live="polite">
+                      <span className="book-spinner" aria-hidden="true" />
+                      <ol className="cover-phases">
+                        {COVER_PHASES.map((label, index) => (
+                          <li key={label} className={index === phase ? "on" : index < phase ? "done" : ""}>
+                            {label}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </div>
-                <div className="book-by">Your Name</div>
+                {image && (
+                  <div className="cover-actions">
+                    <button type="button" className="btn btn-navy" onClick={() => saveCover(image)}>Download</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => shareCover(image)}>Share</button>
+                  </div>
+                )}
+                <p className="preview-note">
+                  {image
+                    ? "AI artwork, not a finished template. Our designers polish this for print."
+                    : "A colour sketch only. Design the cover to replace it with one original image."}
+                </p>
               </div>
-              {generated ? (
-                <div className="status" role="status">
-                  Your AI cover concepts are being created. Choose a package below and they&apos;ll be waiting in your author portal.
-                </div>
-              ) : (
-                <div className="preview-note">Rough preview only. The AI creates full artwork from your idea.</div>
-              )}
             </div>
           </div>
 
           <div className="trio">
             <div className="card">
               <span className="t">Instant AI concepts</span>
-              <span className="d">See several directions for your cover built from your own title, colours and idea.</span>
+              <span className="d">One cover built from your own title, genre, colours and idea.</span>
             </div>
             <div className="card">
               <span className="t">Polished by real designers</span>
